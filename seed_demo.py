@@ -27,13 +27,24 @@ SITE, CROP, ENV = "SITE-WINELANDS-01", "Tomato", "Greenhouse"
 SITE_START = date(2026, 9, 1)
 PLOT_AREA = 10.0
 
+PROTOCOL_BASE = (
+    "- Crop: Tomato, grown in a greenhouse\n"
+    "- Site: SITE-WINELANDS-01, trial start 2026-09-01\n"
+    "- Plot size: 10 m2 per treatment group\n"
+    "- Irrigation: standard fertigation schedule, same for all groups\n"
+    "- Monitoring: weekly visits at the same time of day (trial weeks TW-1, TW-2, ...)\n"
+    "- Recorded: plant height, leaf count, nitrate (mg/L) and other optional readings; "
+    "fresh weight at harvest\n"
+)
+
 PROTOCOLS = {
-    "TGID-0": "**Control.** Standard fertigation only. No biostimulant applied.\n\n"
-              "- Irrigation: standard schedule\n- Measurements: weekly, same time of day",
-    **{f"TGID-{i}": f"**Biostimulant variant {i}.** Standard fertigation plus biostimulant "
-                    f"variant {i} applied weekly at the manufacturer's rate.\n\n"
-                    f"- Irrigation: standard schedule\n- Measurements: weekly, same time of day\n"
-                    f"- _Wording to be confirmed by the Eduponics research team._"
+    "TGID-0": "**Control (TGID-0).** Standard fertigation only. No biostimulant applied.\n\n"
+              + PROTOCOL_BASE,
+    **{f"TGID-{i}": f"**Biostimulant variant {i} (TGID-{i}).** Standard fertigation plus "
+                    f"biostimulant variant {i}. Product, application rate, method and "
+                    f"frequency: [to be supplied by the Eduponics research team].\n\n"
+                    + PROTOCOL_BASE
+                    + "- _Variant details to be confirmed by the Eduponics research team._"
        for i in range(1, 6)},
 }
 
