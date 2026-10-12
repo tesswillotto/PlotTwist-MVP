@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+requests
+scipy
+numpy
+pandas
+plotly
+streamlit
+supabase
+python-dotenv
+pytest
+httpx
