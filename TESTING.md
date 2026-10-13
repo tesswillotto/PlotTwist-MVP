@@ -18,26 +18,49 @@ Tests use temporary databases and a simulated cloud. They never touch real data 
 | Integration | `tests/test_api_and_sync.py` | Offline record stays PENDING then syncs and gets `EP-T101`; retries never duplicate; IDs sequential; cloud rejection → FLAGGED with reason; cloud down keeps PENDING; "Server Wins" on site start date; sign-up/login; role checks (403); CI endpoint at n = 4 then n = 5; dossier ZIP contents and no personal details |
 | System | `tests/test_app_smoke.py` | The Streamlit app starts and handles an unknown login without crashing |
 
-## Result (last run)
+## Result (automated, last run: 13 October 2026)
 
-86 passed.
+86 passed, 16 warnings in 26.04 s (Windows, Python 3.14.7, pytest 9.1.1).
+The 16 warnings are Starlette/httpx deprecation notices from the libraries, not from our code.
 
-## Manual system test (done against the running API and app)
+## Manual system test (13 October 2026)
 
-Seed → farmer logs in online → height 600 blocked → Offline mode on, valid record saved
-as PENDING → Offline mode off, Sync now → SYNCED → DALRRD dashboard shows the CI chart
-(week TW-6 went from "More records needed" to a chart after the sync) → dossier ZIP
-downloaded with CSV + protocol.
+Tester: Tesswill. Environment: Windows, Python 3.14.7, Firefox, local cloud simulator
+(not real Supabase). Data reset with `python seed_demo.py` before the run.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Log in as `farmer102` | Login works, farmer menu shown | Pass |
+| 2 | Select TGID-1 on Site & Plot | Plot accepted | Pass |
+| 3 | Height 600, leaf count empty, submit | Blocked; `plant_height_cm` and `leaf_count` named | Pass |
+| 4 | Dry weight 50 with fresh weight 20 | Blocked: "Dry weight cannot be more than fresh weight" | Pass |
+| 5 | Offline mode on | Banner shows Offline | Pass |
+| 6 | Save valid record offline (height 45, leaves 15, nitrate 141) | Saved locally as PENDING, "1 Records Queued" | Pass |
+| 7 | Offline mode off | "Online (1 record(s) waiting to sync)", record has no cloud ID | Pass |
+| 8 | Sync | Record gets cloud ID `EP-T130`, banner "Online (Synced)" | Pass |
+| 9 | Dashboard TW-5 as `dalrrd01` | CI chart; control n=5 mean 108.4 (105.0–111.8), TGID-1 n=5 mean 135 (129.1–140.9) | Pass (matches hand calculation) |
+| 10 | Dashboard TW-6 and TW-7 | "More records needed" (control 6 / variant 4; control 0 / variant 1) | Pass |
+| 11 | Yield | Control 420 g/m², TGID-1 510 g/m² (hand check: 4200 ÷ 10, 5100 ÷ 10) | Pass |
+| 12 | Generate Act 36 Dossier, download ZIP | ZIP with CSV and protocol Markdown | Pass |
+| 13 | Inspect `trial_observation_data.csv` | 27 rows; no names, emails, contacts or GPS; observer shown as OID only; nitrate column `nitrate_mg_l` | Pass |
+| 14 | Inspect protocol Markdown | Control and variant sections with crop, site, plot size, monitoring | Pass |
+| 15 | Log in as `uwc01` | Dashboard only; no dossier button | Pass |
+| 16 | Wrong password for `farmer102` | "Wrong username or password." | Pass |
+
+Not run manually (covered by the automated tests): syncing the same record twice, height 0 and -5, and Supabase mode.
 
 ## Bug log
 
-| # | Found | Bug | Fix |
+| # | Found | Bug | Fix / status |
 |---|---|---|---|
 | 1 | Test run | Two of our own tests had wrong expectations (ZIP file ordering, 12 Oct is TW-6 not TW-7) | Corrected the tests; code was right |
 | 2 | Review | Original SQL: a comment swallowed the `dissolved_oxygen` column | Rewritten schema |
 | 3 | Review | Original schema used one `record_id` for both the local and the cloud ID | Split into `local_id` and `cloud_record_id` |
+| 4 | Manual test, 13 Oct | Demo script depends on today's date. The trial week is calculated from the current date, so a record entered after 12 Oct lands in TW-7, not TW-6, and the TW-6 chart never appears (README step 5 and the `seed_demo.py` comment no longer work) | Open. Workaround: in the video show TW-6 for "More records needed" and TW-5 for the chart. Alternative: seed TW-7 data in `seed_demo.py` |
+| 5 | Manual test, 13 Oct | After pressing Sync now, the message read "0 synced, 0 flagged, 0 pending" although the record had just synced (probably it synced automatically when Offline mode was switched off, so the button had nothing left to send). Wording is confusing; data is correct | Open, low priority; cause not investigated |
 
-Add new bugs here as the team finds them (what, who, how fixed).
+Note: the test record `EP-T130` entered during the manual test is included in a dossier exported
+afterwards. Run `python seed_demo.py` again before any final dossier export or video take.
 
 ## Not yet tested
 
