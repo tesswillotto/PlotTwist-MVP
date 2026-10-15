@@ -297,8 +297,11 @@ def page_dashboard():
             mode="markers", marker=dict(size=14, color=["#5b6b7b", "#2e7d32"]),
             error_y=dict(type="data", array=[c["margin"], v["margin"]], visible=True, thickness=2, width=10),
             hovertemplate="%{x}<br>mean %{y:.1f} mg/L<extra></extra>"))
+        
         fig.update_layout(yaxis_title="Nitrate (mg/L), mean ± 95% CI", height=380,
-                          margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
+                          margin=dict(l=10, r=10, t=10, b=10), showlegend=False,
+                          hoverlabel=dict(bgcolor="#1f2933", font=dict(color="#ffffff", size=14)))
+        
         st.plotly_chart(fig, width="stretch")
         (st.success if ci["band"] == "green" else st.warning)(ci["band_text"])
         st.dataframe(pd.DataFrame([
