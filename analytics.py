@@ -11,6 +11,8 @@ def mean_ci(values, confidence: float = 0.95) -> dict:
     """Mean and confidence interval of one group using Student's t-distribution."""
     data = np.asarray(values, dtype=float)
     n = len(data)
+    if n < 2:
+        raise ValueError("At least 2 values are needed for a confidence interval.")
     mean = float(data.mean())
     sd = float(data.std(ddof=1))                     # sample standard deviation
     sem = sd / math.sqrt(n)                          # standard error of the mean
@@ -22,7 +24,12 @@ def mean_ci(values, confidence: float = 0.95) -> dict:
 
 def _clean(values) -> list:
     """Blank (None) nitrate values are ignored and do not count towards n."""
-    return [float(v) for v in values if v is not None]
+    out = []
+    for v in values:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            continue
+        out.append(float(v))
+    return [v for v in out if not math.isnan(v)]
 
 
 def compare_nitrate(control_values, variant_values, min_n: int = MIN_N) -> dict:
