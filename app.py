@@ -88,7 +88,7 @@ def do_login(username: str, password: str):
 # ------------------------------------------------------------------- pages --
 def page_auth():
     st.title("🌱 PlotTwist")
-    st.caption("")
+    st.caption("Store, Analyse, Finalize")
     status_banner()
     tab_login, tab_signup = st.tabs(["Log in", "Sign up"])
 
