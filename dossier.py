@@ -37,7 +37,7 @@ def combine_protocols(control_text, variant_text, variant_id: str) -> str:
 
 def build_dossier(records: list, control_protocol, variant_protocol, variant_id: str) -> bytes:
     """Return the dossier ZIP as bytes."""
-    csv_text = anonymise(records).to_csv(index=False)
+    csv_text = anonymise(records).round(3).to_csv(index=False)
     protocol_md = combine_protocols(control_protocol, variant_protocol, variant_id)
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
