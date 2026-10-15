@@ -21,7 +21,7 @@ import database as db
 import sync_worker
 from validation import validate_record
 
-st.set_page_config(page_title="AgriTrial MVP", page_icon="🌱", layout="centered")
+st.set_page_config(page_title="PlotTwist MVP", page_icon="🌱", layout="centered")
 
 # Large touch targets for farmers using phones in bright sun.
 st.markdown("""
@@ -87,8 +87,8 @@ def do_login(username: str, password: str):
 
 # ------------------------------------------------------------------- pages --
 def page_auth():
-    st.title("🌱 AgriTrial")
-    st.caption("Offline-first trial data capture for small farmers")
+    st.title("🌱 PlotTwist")
+    st.caption("")
     status_banner()
     tab_login, tab_signup = st.tabs(["Log in", "Sign up"])
 
