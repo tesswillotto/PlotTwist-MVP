@@ -21,7 +21,7 @@ import database as db
 import sync_worker
 from validation import validate_record
 
-st.set_page_config(page_title="AgriTrial MVP", page_icon="🌱", layout="centered")
+st.set_page_config(page_title="PlotTwist MVP", page_icon="🌱", layout="centered")
 
 # Large touch targets for farmers using phones in bright sun.
 st.markdown("""
@@ -87,8 +87,8 @@ def do_login(username: str, password: str):
 
 # ------------------------------------------------------------------- pages --
 def page_auth():
-    st.title("🌱 AgriTrial")
-    st.caption("Offline-first trial data capture for small farmers")
+    st.title("🌱 PlotTwist")
+    st.caption("Store, Analyse, Finalize")
     status_banner()
     tab_login, tab_signup = st.tabs(["Log in", "Sign up"])
 
@@ -297,8 +297,11 @@ def page_dashboard():
             mode="markers", marker=dict(size=14, color=["#5b6b7b", "#2e7d32"]),
             error_y=dict(type="data", array=[c["margin"], v["margin"]], visible=True, thickness=2, width=10),
             hovertemplate="%{x}<br>mean %{y:.1f} mg/L<extra></extra>"))
+        
         fig.update_layout(yaxis_title="Nitrate (mg/L), mean ± 95% CI", height=380,
-                          margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
+                          margin=dict(l=10, r=10, t=10, b=10), showlegend=False,
+                          hoverlabel=dict(bgcolor="#1f2933", font=dict(color="#ffffff", size=14)))
+        
         st.plotly_chart(fig, width="stretch")
         (st.success if ci["band"] == "green" else st.warning)(ci["band_text"])
         st.dataframe(pd.DataFrame([

@@ -17,11 +17,13 @@ Tests use temporary databases and a simulated cloud. They never touch real data 
 | Unit | `tests/test_database.py` | Records save as PENDING; DB CHECK constraints block bad data; edit resets FLAGGED → PENDING; trial week maths; offline login uses a salted hash |
 | Integration | `tests/test_api_and_sync.py` | Offline record stays PENDING then syncs and gets `EP-T101`; retries never duplicate; IDs sequential; cloud rejection → FLAGGED with reason; cloud down keeps PENDING; "Server Wins" on site start date; sign-up/login; role checks (403); CI endpoint at n = 4 then n = 5; dossier ZIP contents and no personal details |
 | System | `tests/test_app_smoke.py` | The Streamlit app starts and handles an unknown login without crashing |
+| Unit | `tests/test_analytics_extra.py` | Edge cases: fewer than 2 values refused; blank (`""`) and NaN readings ignored; empty groups; 4 vs 5 boundary; identical values give a zero-width interval; yield ignores blank weights and zero area |
+| Unit | `tests/test_dossier.py` | Personal fields (names, contacts, notes, GPS) never reach the export; OID kept; missing protocol text shows a placeholder; empty export gives a header-only CSV |
 
-## Result (automated, last run: 13 October 2026)
+## Result (automated, last run: 15 October 2026)
 
-86 passed, 16 warnings in 26.04 s (Windows, Python 3.14.7, pytest 9.1.1).
-The 16 warnings are Starlette/httpx deprecation notices from the libraries, not from our code.
+101 passed, 16 warnings in 15.00 s (Windows, Python 3.14.7).
+The 16 warnings are Starlette/httpx deprecation notices from the libraries, not from our code
 
 ## Manual system test (13 October 2026)
 
@@ -58,6 +60,7 @@ Not run manually (covered by the automated tests): syncing the same record twice
 | 3 | Review | Original schema used one `record_id` for both the local and the cloud ID | Split into `local_id` and `cloud_record_id` |
 | 4 | Manual test, 13 Oct | Demo script depends on today's date. The trial week is calculated from the current date, so a record entered after 12 Oct lands in TW-7, not TW-6, and the TW-6 chart never appears (README step 5 and the `seed_demo.py` comment no longer work) | Open. Workaround: in the video show TW-6 for "More records needed" and TW-5 for the chart. Alternative: seed TW-7 data in `seed_demo.py` |
 | 5 | Manual test, 13 Oct | After pressing Sync now, the message read "0 synced, 0 flagged, 0 pending" although the record had just synced (probably it synced automatically when Offline mode was switched off, so the button had nothing left to send). Wording is confusing; data is correct | Open, low priority; cause not investigated |
+| 6 | Automated tests, 15 Oct | `mean_ci` gave a divide-by-zero or NaN with fewer than 2 values, and `compare_nitrate` crashed on a blank `""` reading | Fixed in `analytics.py` (guard in `mean_ci`, stricter `_clean`); 3 tests in `test_analytics_extra.py` failed before the fix and pass after |
 
 Note: the test record `EP-T130` entered during the manual test is included in a dossier exported
 afterwards. Run `python seed_demo.py` again before any final dossier export or video take.
