@@ -8,14 +8,15 @@ Pages
   Stakeholders : Dashboard (95% CI chart, yield, DALRRD dossier download)
 """
 import os
-from datetime import date, datetime
+from datetime import date
 #fix code
 import pandas as pd
-import plotly.graph_objects as go
 import requests
 import streamlit as st
 
+import analytics
 import api_client
+import charts
 import config
 import database as db
 import sync_worker
@@ -270,66 +271,101 @@ def page_dashboard():
     try:
         site_id = st.selectbox("Site", config.SITES)
         crop = st.selectbox("Crop", config.CROPS)
-        variant = st.selectbox("Biostimulant variant (compared with TGID-0 control)", config.VARIANT_GROUPS)
         trials = api_client.get_json("/api/v1/trials", role, site_id=site_id, crop_id=crop)
         weeks = sorted({t["trial_week"] for t in trials}, key=lambda w: int(w[3:]))
         if not weeks:
             st.info("No trial data for this site and crop yet.")
             return
         week = st.selectbox("Trial week", weeks, index=len(weeks) - 1)
-        ci = api_client.get_json("/api/v1/analytics/nitrate-ci", role, site_id=site_id,
-                                 crop_id=crop, variant_group_id=variant, trial_week=week)
-        yc = api_client.get_json("/api/v1/analytics/plot-yield", role, site_id=site_id,
-                                 crop_id=crop, treatment_group_id="TGID-0")
-        yv = api_client.get_json("/api/v1/analytics/plot-yield", role, site_id=site_id,
-                                 crop_id=crop, treatment_group_id=variant)
+        # Every treatment group is compared with the control (TGID-0).
+        results = []
+        for group in config.VARIANT_GROUPS:
+            result = api_client.get_json("/api/v1/analytics/nitrate-ci", role, site_id=site_id,
+                                         crop_id=crop, variant_group_id=group, trial_week=week)
+            result["group"] = group
+            results.append(result)
+        yields = {}
+        for group in config.TREATMENT_GROUPS:
+            yield_info = api_client.get_json("/api/v1/analytics/plot-yield", role, site_id=site_id,
+                                             crop_id=crop, treatment_group_id=group)
+            yields[group] = yield_info["yield_g_m2"]
     except requests.RequestException as exc:
         st.error(f"Could not load data from the API: {exc}")
         return
 
-    st.subheader(f"Nitrate: Control vs {variant} ({week})")
-    if not ci["sufficient"]:
-        st.warning(ci["notice"])
+    st.subheader(f"Nitrate: every treatment group vs control ({week})")
+    ready = [r for r in results if r["sufficient"]]
+    if not ready:
+        st.warning(results[0]["notice"])      # control (or every group) has fewer than 5 readings
     else:
-        c, v = ci["control"], ci["variant"]
-        fig = go.Figure(go.Scatter(
-            x=["Control (TGID-0)", f"Variant ({variant})"], y=[c["mean"], v["mean"]],
-            mode="markers", marker=dict(size=14, color=["#5b6b7b", "#2e7d32"]),
-            error_y=dict(type="data", array=[c["margin"], v["margin"]], visible=True, thickness=2, width=10),
-            hovertemplate="%{x}<br>mean %{y:.1f} mg/L<extra></extra>"))
-        
-        fig.update_layout(yaxis_title="Nitrate (mg/L), mean ± 95% CI", height=380,
-                          margin=dict(l=10, r=10, t=10, b=10), showlegend=False,
-                          hoverlabel=dict(bgcolor="#1f2933", font=dict(color="#ffffff", size=14)))
-        
-        st.plotly_chart(fig, width="stretch")
-        (st.success if ci["band"] == "green" else st.warning)(ci["band_text"])
-        st.dataframe(pd.DataFrame([
-            {"Group": "Control", "n": c["n"], "Mean": round(c["mean"], 2),
-             "95% CI": f"{c['ci_lower']:.1f} to {c['ci_upper']:.1f}"},
-            {"Group": variant, "n": v["n"], "Mean": round(v["mean"], 2),
-             "95% CI": f"{v['ci_lower']:.1f} to {v['ci_upper']:.1f}"}]),
-            hide_index=True, width="stretch")
+        for r in results:
+            if not r["sufficient"]:
+                st.warning(f"{r['group']}: {r['notice']}")
+        control = ready[0]["control"]
+        st.plotly_chart(charts.ci_figure(control, results), width="stretch")
+        st.caption("Green = the 95% interval does not overlap the control (clear difference). "
+                   "Yellow = the intervals overlap (no clear difference yet). "
+                   "The grey band is the control's own 95% interval.")
+        rows = [{"Group": "Control (TGID-0)", "n": control["n"],
+                 "Mean (mg/L)": round(control["mean"], 1),
+                 "95% CI": f"{control['ci_lower']:.1f} to {control['ci_upper']:.1f}",
+                 "Difference vs control": "reference", "Result": "Reference"}]
+        for r in results:
+            if r["sufficient"]:
+                v = r["variant"]
+                rows.append({"Group": r["group"], "n": v["n"], "Mean (mg/L)": round(v["mean"], 1),
+                             "95% CI": f"{v['ci_lower']:.1f} to {v['ci_upper']:.1f}",
+                             "Difference vs control":
+                                 f"{r['difference']:+.1f} ({r['difference_pct']:+.1f}%)",
+                             "Result": analytics.verdict(r)})
+            else:
+                rows.append({"Group": r["group"], "n": f"{r['n_variant']} (control {r['n_control']})",
+                             "Mean (mg/L)": "-", "95% CI": "-", "Difference vs control": "-",
+                             "Result": analytics.verdict(r)})
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
     st.subheader("Yield (g/m²)")
-    col1, col2 = st.columns(2)
-    for col, label, data in ((col1, "Control", yc), (col2, variant, yv)):
-        col.metric(label, "Harvest in progress" if data["yield_g_m2"] is None
-                   else f"{data['yield_g_m2']:.0f} g/m²")
+    st.plotly_chart(charts.yield_figure(yields), width="stretch")
+    in_progress = [g for g, v in yields.items() if v is None]
+    if in_progress:
+        st.caption("Harvest in progress: " + ", ".join(in_progress))
 
     if role == config.ROLE_DALRRD:
         st.subheader("Regulatory report")
-        if st.button("Generate Act 36 Dossier"):
+        st.write("A PDF report comparing every treatment group with the control: summary, "
+                 "nitrate confidence-interval chart, week-by-week means, growth, yield, "
+                 "protocols and method notes.")
+        report_key = f"{site_id}|{crop}|{week}"
+        if st.button("Generate Act 36 PDF report"):
             try:
-                st.session_state["dossier"] = api_client.get_bytes(
-                    "/api/v1/dossier", role, site_id=site_id, crop_id=crop, variant_group_id=variant)
+                with st.spinner("Building the report..."):
+                    pdf = api_client.get_bytes("/api/v1/dossier-pdf", role, site_id=site_id,
+                                               crop_id=crop, trial_week=week)
+                st.session_state["report"] = (report_key, pdf)
             except requests.RequestException as exc:
-                st.error(f"Could not generate the dossier: {exc}")
-        if st.session_state.get("dossier"):
-            st.download_button("⬇ Download dossier (ZIP)", st.session_state["dossier"],
-                               file_name=f"Act36_Dossier_{site_id}_{crop}_{variant}.zip",
-                               mime="application/zip")
-            st.caption("Contains the anonymised CSV data and the combined control + variant protocol (Markdown).")
+                st.error(f"Could not generate the report: {exc}")
+        report = st.session_state.get("report")
+        if report and report[0] == report_key:
+            st.download_button("⬇ Download PDF report", report[1],
+                               file_name=f"Act36_Report_{site_id}_{crop}_{week}.pdf",
+                               mime="application/pdf")
+
+        with st.expander("Raw data package (anonymised CSV + protocols, ZIP)"):
+            variant = st.selectbox("Biostimulant variant (compared with TGID-0 control)",
+                                   config.VARIANT_GROUPS, key="zip_variant")
+            if st.button("Generate data package"):
+                try:
+                    st.session_state["dossier"] = api_client.get_bytes(
+                        "/api/v1/dossier", role, site_id=site_id, crop_id=crop,
+                        variant_group_id=variant)
+                except requests.RequestException as exc:
+                    st.error(f"Could not generate the data package: {exc}")
+            if st.session_state.get("dossier"):
+                st.download_button("⬇ Download data package (ZIP)", st.session_state["dossier"],
+                                   file_name=f"Act36_Data_{site_id}_{crop}_{variant}.zip",
+                                   mime="application/zip")
+                st.caption("Contains the anonymised CSV data and the combined control + variant "
+                           "protocol (Markdown).")
 
 
 # --------------------------------------------------------------------- main --
@@ -349,7 +385,7 @@ else:
                  if user["role"] == config.ROLE_FARMER else ["Dashboard"])
         choice = st.radio("Menu", pages)
         if st.button("Log out"):
-            st.session_state.update(user=None, ctx=None, dossier=None)
+            st.session_state.update(user=None, ctx=None, dossier=None, report=None)
             st.rerun()
 
     status_banner()

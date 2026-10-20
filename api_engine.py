@@ -201,3 +201,14 @@ def dossier(site_id: str = Query(...), crop_id: str = Query(...),
     filename = f"Act36_Dossier_{site_id}_{crop_id}_{variant_group_id}.zip"
     return Response(content=data, media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.get("/api/v1/dossier-pdf", tags=["reports"])
+def dossier_pdf(site_id: str = Query(...), crop_id: str = Query(...),
+                trial_week: str = Query(None), _=Depends(dalrrd_only)):
+    """DALRRD Act 36 PDF report: every treatment group compared with the control."""
+    from report_pdf import build_pdf_report   # imported here so the rest of the API never needs it
+    data = build_pdf_report(get_store(), site_id, crop_id, trial_week)
+    filename = f"Act36_Report_{site_id}_{crop_id}.pdf"
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})

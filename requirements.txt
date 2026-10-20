@@ -10,3 +10,4 @@ supabase
 python-dotenv
 pytest
 httpx
+reportlab

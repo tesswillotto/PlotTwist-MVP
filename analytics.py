@@ -48,8 +48,11 @@ def compare_nitrate(control_values, variant_values, min_n: int = MIN_N) -> dict:
 
     c, v = mean_ci(control), mean_ci(variant)
     overlap = not (c["ci_upper"] < v["ci_lower"] or v["ci_upper"] < c["ci_lower"])
+    difference = v["mean"] - c["mean"]
     result.update(
         sufficient=True, control=c, variant=v, overlap=overlap,
+        difference=difference,
+        difference_pct=(difference / c["mean"] * 100) if c["mean"] else None,
         # Green: intervals do not overlap (clear difference). Yellow: they overlap.
         band="yellow" if overlap else "green",
         band_text=("The 95% intervals overlap: no clear difference yet."
@@ -67,3 +70,34 @@ def plot_yield(harvest_records: list, area_m2) -> float:
     total = sum(float(r["fresh_weight_g"]) for r in harvest_records
                 if r.get("fresh_weight_g") is not None)
     return total / float(area_m2)
+
+
+def compare_all_groups(control_values, variant_values_by_group: dict, min_n: int = MIN_N) -> list:
+    """Compare the control with EVERY treatment group (TGID-1 to TGID-5).
+
+    Returns one compare_nitrate() result per group, each with a "group" key added.
+    """
+    results = []
+    for group, values in variant_values_by_group.items():
+        result = compare_nitrate(control_values, values, min_n)
+        result["group"] = group
+        results.append(result)
+    return results
+
+
+def summarise(values) -> dict:
+    """n, mean and sample SD of the non-blank values (no confidence interval)."""
+    data = _clean(values)
+    n = len(data)
+    return {"n": n,
+            "mean": float(np.mean(data)) if n else None,
+            "sd": float(np.std(data, ddof=1)) if n > 1 else None}
+
+
+def verdict(result: dict) -> str:
+    """Plain-words result of one control-vs-group comparison."""
+    if not result["sufficient"]:
+        return "Insufficient data"
+    if result["overlap"]:
+        return "No clear difference"
+    return "Clear difference (higher)" if result["difference"] > 0 else "Clear difference (lower)"

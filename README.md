@@ -37,7 +37,7 @@ pip install -r requirements.txt
 ## 2. Run the demo (two terminals, both with the venv activated)
 
 ```bash
-python seed_demo.py                 # resets and loads demo data (run before every video take)
+python seed_demo.py                 # resets and loads ~200 demo records (run before every demo or video take)
 uvicorn api_engine:app --reload     # terminal 1: API  (docs at http://127.0.0.1:8000/docs)
 streamlit run app.py                # terminal 2: app  (opens in the browser)
 ```
@@ -47,7 +47,7 @@ With no Supabase keys set, the API uses a built-in **local cloud simulator**
 
 | Login | Password | Role |
 |---|---|---|
-| farmer102 | farmer102pw | Small Farmer (OID-102) |
+| sam | sampw | Small Farmer, shown as "Sam" (OID-102) |
 | dalrrd01 | dalrrd01pw | DALRRD Regulatory Official |
 | uwc01 | uwc01pw | UWC Researcher (dashboard only) |
 
@@ -75,13 +75,16 @@ Streamlit smoke test. See `TESTING.md` for the procedures and results.
 
 ## 5. Demo script (the path to show on video)
 
-1. Log in as `farmer102` → **Site & Plot** → TGID-1 → *Use this plot*.
+1. Log in as `sam` → **Site & Plot** → TGID-1 → *Use this plot*.
 2. **Capture Record**: Height `600` → blocked with a clear message.
 3. Turn on **Offline mode** (sidebar). Enter height `45`, leaves `15`, nitrate `141` → saved `PENDING` ("1 Records Queued").
 4. Turn Offline mode off → **My Records & Sync → Sync now** → `SYNCED` with `EP-T###`.
-5. Log out, log in as `dalrrd01` → **Dashboard**: TGID-1, week TW-6 → CI chart (it showed
-   "More records needed" before the sync; week TW-5 always has the chart).
-6. **Generate Act 36 Dossier** → download the ZIP (anonymised CSV + Markdown protocol).
+5. Log out, log in as `dalrrd01` → **Dashboard**, week TW-6: the chart compares the control
+   with every treatment group. TGID-1 showed "More records needed" before your sync (it had 4
+   readings) and now joins the chart. Other weeks (TW-1 to TW-5) show every group.
+6. **Generate Act 36 PDF report** → download the PDF: summary, CI chart, week-by-week means,
+   growth, yield, protocols and method notes. (The anonymised CSV + protocol ZIP is under
+   "Raw data package".)
 
 ## 6. Files
 
@@ -95,6 +98,8 @@ Streamlit smoke test. See `TESTING.md` for the procedures and results.
 | `cloud_store.py` | Supabase store + local simulator behind one interface |
 | `analytics.py` | Mean ± 95% CI (Student's t), plot yield |
 | `dossier.py` | Anonymised CSV + protocol Markdown → ZIP |
+| `report_pdf.py` | The Act 36 PDF report: every treatment group compared with the control |
+| `charts.py` | Dashboard charts (Plotly): all-groups CI chart and yield chart |
 | `seed_demo.py` | Resets and loads demo data |
 | `sql/` | `schema_sqlite.sql` (phone), `schema_supabase.sql` (cloud) |
 | `tests/` | pytest suite |
@@ -111,7 +116,8 @@ Streamlit smoke test. See `TESTING.md` for the procedures and results.
 | `GET /api/v1/trials` | stakeholders | Filter by site, crop, group, week, visit type |
 | `GET /api/v1/analytics/nitrate-ci` | stakeholders | Mean ± 95% CI, only when n ≥ 5 per group |
 | `GET /api/v1/analytics/plot-yield` | stakeholders | Yield g/m² |
-| `GET /api/v1/dossier` | DALRRD | Act 36 dossier ZIP |
+| `GET /api/v1/dossier` | DALRRD | Data package ZIP (anonymised CSV + protocols) |
+| `GET /api/v1/dossier-pdf` | DALRRD | Act 36 PDF report (all groups vs control) |
 
 Roles are sent in an `X-User-Role` header (prototype). Production would use signed tokens.
 
