@@ -41,7 +41,7 @@ def _week_no(week: str) -> int:
 
 
 def collect_report_data(store, site_id: str, crop_id: str, trial_week: str = None) -> dict:
-    """Gather everything the report needs from the cloud store (no PDF code here)."""
+    """Gather everything the report needs from the cloud store."""
     site = store.get_site(site_id)
     trials = {g: store.list_trials(site_id=site_id, crop_id=crop_id, treatment_group_id=g)
               for g in config.TREATMENT_GROUPS}
