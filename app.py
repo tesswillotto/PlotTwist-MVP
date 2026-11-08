@@ -9,7 +9,6 @@ Pages
 """
 import os
 from datetime import date
-#fix code
 import pandas as pd
 import requests
 import streamlit as st

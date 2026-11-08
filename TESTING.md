@@ -19,7 +19,7 @@ Tests use temporary databases and a simulated cloud. They never touch real data 
 | System | `tests/test_app_smoke.py` | The Streamlit app starts and handles an unknown login without crashing |
 | Unit | `tests/test_analytics_extra.py` | Edge cases: fewer than 2 values refused; blank (`""`) and NaN readings ignored; empty groups; 4 vs 5 boundary; identical values give a zero-width interval; yield ignores blank weights and zero area |
 | Unit | `tests/test_dossier.py` | Personal fields (names, contacts, notes, GPS) never reach the export; OID kept; missing protocol text shows a placeholder; empty export gives a header-only CSV |
-| Unit + Integration | `test_report_and_seed.py` | Every treatment group is compared with the control (higher, lower, no clear difference, insufficient data); the Act 36 PDF report is valid, contains no personal data and does not crash with no data or too little control data; demo seed data loads enough records and every seeded record passes validation |
+| Unit + Integration | `tests/test_report_and_seed.py` | Every treatment group is compared with the control (higher, lower, no clear difference, insufficient data); the Act 36 PDF report is valid, contains no personal data and does not crash with no data or too little control data; demo seed data loads enough records and every seeded record passes validation |
 
 ## Result (automated, last run: 5 November 2026)
 
