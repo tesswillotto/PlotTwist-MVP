@@ -1,4 +1,4 @@
-# AgriTrial MVP (IFS140 Group 1)
+# PlotTwist MVP (IFS140 Group 1)
 
 Offline-first trial data capture for small farmers, with 95% confidence-interval
 analytics and a DALRRD Act 36 dossier export.
