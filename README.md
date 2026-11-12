@@ -22,8 +22,8 @@ Streamlit app ──► SQLite (phone) ──► sync_worker.py ──► FastAP
 Needs Python 3.11+.
 
 ```bash
-git clone https://github.com/tesswillotto/Agritrial-MVP.git
-cd Agritrial-MVP
+git clone https://github.com/tesswillotto/PlotTwist-MVP.git
+cd PlotTwist-MVP
 python -m venv venv
 
 # Windows:
