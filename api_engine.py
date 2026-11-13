@@ -38,6 +38,17 @@ farmer_only = require_roles(config.ROLE_FARMER)
 dalrrd_only = require_roles(config.ROLE_DALRRD)
 
 
+# ---------------------------------------------------------- input checkers --
+def _check_variant(variant_group_id: str):
+    if variant_group_id not in config.VARIANT_GROUPS:
+        raise HTTPException(400, "variant_group_id must be TGID-1 to TGID-5.")
+
+
+def _check_site_crop(site_id: str, crop_id: str):
+    if site_id not in config.SITES or crop_id not in config.CROPS:
+        raise HTTPException(400, "Unknown site_id or crop_id.")
+
+
 # -------------------------------------------------------------------- health --
 @app.get("/health", tags=["system"])
 def health():
@@ -96,7 +107,9 @@ def create_site(body: dict = Body(...), _=Depends(farmer_only)):
         date.fromisoformat(str(body.get("start_date")))
     except ValueError:
         raise HTTPException(400, "start_date must be a valid date (YYYY-MM-DD).")
-    return get_store().create_site_if_absent(body.get("site_id"), body["start_date"])
+    if body.get("site_id") not in config.SITES:
+        raise HTTPException(400, "Unknown site_id.")
+    return get_store().create_site_if_absent(body["site_id"], body["start_date"])
 
 
 @app.get("/api/v1/plots", tags=["setup"])
@@ -113,7 +126,12 @@ def create_plot(body: dict = Body(...), _=Depends(farmer_only)):
         area = 0
     if area <= 0:
         raise HTTPException(400, "area_m2 must be a number greater than 0.")
-    plot = {k: body.get(k) for k in ("plot_id", "site_id", "crop_id", "treatment_group_id")}
+    _check_site_crop(body.get("site_id"), body.get("crop_id"))
+    if body.get("treatment_group_id") not in config.TREATMENT_GROUPS:
+        raise HTTPException(400, "Unknown treatment_group_id.")
+    plot = {k: body.get(k) for k in ("site_id", "crop_id", "treatment_group_id")}
+    # The server builds the plot ID itself, so a client cannot invent one.
+    plot["plot_id"] = f"{plot['site_id']}-{plot['crop_id']}-{plot['treatment_group_id']}"
     plot["area_m2"] = area
     return get_store().create_plot_if_absent(plot)
 
@@ -133,8 +151,8 @@ def upsert_trial(rec: dict = Body(...), _=Depends(farmer_only)):
                             content={"status": "REJECTED", "error": format_errors(errors)})
     try:
         record_id = get_store().upsert_trial(rec)
-    except Exception as exc:  # cloud problem: not the farmer's fault, keep PENDING
-        raise HTTPException(503, f"Cloud unavailable: {exc}")
+    except Exception:  # cloud problem: not the farmer's fault, keep PENDING
+        raise HTTPException(503, "Cloud unavailable. The record stays PENDING and will be retried.")
     return {"status": "SUCCESS", "cloud_record_id": record_id}
 
 
@@ -143,23 +161,22 @@ def get_trials(site_id: str = None, crop_id: str = None, treatment_group_id: str
                trial_week: str = None, visit_type: str = None, plot_id: str = None,
                _=Depends(stakeholder)):
     """Trial data for a site / treatment group (filters are optional)."""
-    return get_store().list_trials(site_id=site_id, crop_id=crop_id,
+    rows = get_store().list_trials(site_id=site_id, crop_id=crop_id,
                                    treatment_group_id=treatment_group_id,
                                    trial_week=trial_week, visit_type=visit_type, plot_id=plot_id)
+    for row in rows:
+        row.pop("notes", None)   # free text can contain personal details
+    return rows
 
 
 # ----------------------------------------------------------------- analytics --
-def _check_variant(variant_group_id: str):
-    if variant_group_id not in config.VARIANT_GROUPS:
-        raise HTTPException(400, "variant_group_id must be TGID-1 to TGID-5.")
-
-
 @app.get("/api/v1/analytics/nitrate-ci", tags=["analytics"])
 def nitrate_ci(site_id: str = Query(...), crop_id: str = Query(...),
                variant_group_id: str = Query(...), trial_week: str = Query(...),
                _=Depends(stakeholder)):
     """Mean +/- 95% CI (Student's t) of nitrate for control vs variant, only when n >= 5 in both."""
     _check_variant(variant_group_id)
+    _check_site_crop(site_id, crop_id)
     store = get_store()
 
     def nitrate(group):
@@ -180,8 +197,10 @@ def plot_yield(site_id: str = Query(...), crop_id: str = Query(...),
     plot_id = f"{site_id}-{crop_id}-{treatment_group_id}"
     store = get_store()
     plot = store.get_plot(plot_id)
+    if plot is None:   # the dashboard asks about all 6 groups, so this must not be an error
+        return {"plot_id": plot_id, "yield_g_m2": None, "status": "Plot not set up"}
     rows = store.list_trials(plot_id=plot_id, visit_type="HARVEST_VISIT")
-    value = analytics.plot_yield(rows, plot["area_m2"] if plot else None)
+    value = analytics.plot_yield(rows, plot["area_m2"])
     return {"plot_id": plot_id, "yield_g_m2": value,
             "status": "Harvest in progress" if value is None else "Complete"}
 
@@ -192,6 +211,7 @@ def dossier(site_id: str = Query(...), crop_id: str = Query(...),
             variant_group_id: str = Query(...), _=Depends(dalrrd_only)):
     """DALRRD Act 36 dossier: ZIP with anonymised CSV and the combined protocol text."""
     _check_variant(variant_group_id)
+    _check_site_crop(site_id, crop_id)
     store = get_store()
     records = (store.list_trials(site_id=site_id, crop_id=crop_id, treatment_group_id="TGID-0")
                + store.list_trials(site_id=site_id, crop_id=crop_id,
@@ -207,6 +227,7 @@ def dossier(site_id: str = Query(...), crop_id: str = Query(...),
 def dossier_pdf(site_id: str = Query(...), crop_id: str = Query(...),
                 trial_week: str = Query(None), _=Depends(dalrrd_only)):
     """DALRRD Act 36 PDF report: every treatment group compared with the control."""
+    _check_site_crop(site_id, crop_id)
     from report_pdf import build_pdf_report   # imported here so the rest of the API never needs it
     data = build_pdf_report(get_store(), site_id, crop_id, trial_week)
     filename = f"Act36_Report_{site_id}_{crop_id}.pdf"

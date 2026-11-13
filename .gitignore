@@ -1,8 +1,11 @@
 # Secrets: NEVER commit these
 .env
+.env.*
+!.env.example
 
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -10,3 +13,11 @@ __pycache__/
 # Local databases (each phone/laptop makes its own)
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

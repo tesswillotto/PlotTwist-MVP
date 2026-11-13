@@ -20,6 +20,13 @@ import cloud_store
 import config
 import database as db
 
+# config.py calls load_dotenv(), which would bring real Supabase keys back from a local
+# .env file. Clear them again so the tests can never reach a real project.
+os.environ.pop("SUPABASE_URL", None)
+os.environ.pop("SUPABASE_SERVICE_KEY", None)
+config.SUPABASE_URL = ""
+config.SUPABASE_SERVICE_KEY = ""
+
 
 @pytest.fixture
 def local_db(tmp_path):

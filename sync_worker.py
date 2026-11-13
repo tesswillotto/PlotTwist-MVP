@@ -91,8 +91,12 @@ def sync_pending_records(db_path: str = None, api_url: str = None, post=requests
         # any other status (e.g. 503): stays PENDING
 
     summary["pending_left"] = db.count_by_status(db_path)["PENDING"]
-    summary["message"] = (f"Cloud sync completed: {summary['synced']} synced, "
-                          f"{summary['flagged']} flagged, {summary['pending_left']} pending.")
+    if not pending:
+        # Nothing was waiting: the background sync (or an earlier click) already sent it all.
+        summary["message"] = "Nothing to sync: every record is already synced."
+    else:
+        summary["message"] = (f"Cloud sync completed: {summary['synced']} synced, "
+                              f"{summary['flagged']} flagged, {summary['pending_left']} pending.")
     return summary
 
 

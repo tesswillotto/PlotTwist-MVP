@@ -86,6 +86,9 @@ def collect_report_data(store, site_id: str, crop_id: str, trial_week: str = Non
         "source": getattr(store, "name", "cloud database"),
         "weeks": weeks, "trial_week": trial_week,
         "total_records": sum(len(rows) for rows in trials.values()),
+        # Records made by seed_demo.py have a client_uuid that starts with "seed-"
+        "demo_data": any(str(r.get("client_uuid", "")).startswith("seed-")
+                         for rows in trials.values() for r in rows),
         "observers": len({r.get("observer_id") for rows in trials.values() for r in rows}),
         "results": results, "control": control, "weekly": weekly,
         "growth": growth, "yields": yields,
@@ -341,6 +344,9 @@ def build_pdf_report(store, site_id: str, crop_id: str, trial_week: str = None,
                 ["Observers (anonymised IDs only)", str(data["observers"])],
                 ["Groups compared", "Control (TGID-0) with TGID-1 to TGID-5"],
                 ["Data source", str(data["source"])]]
+    if data["demo_data"]:
+        overview.append(["Data status", "DEMONSTRATION DATA: synthetic records made by the "
+                         "demo seed script. These are not real trial results."])
     story.append(_table(overview, [150, usable - 150], st))
 
     # ---- 1. summary

@@ -17,6 +17,9 @@ Creates (in the cloud store AND a fresh local database):
   * TW-6 live demo trick: TGID-1 has only 4 readings (needs 1 more!). As Sam, add ONE TGID-1
     nitrate record while offline, sync, then refresh the dashboard: TGID-1 joins the chart.
   * a completed harvest for every group (yield 420, 510, 470, 440, 540, 425 g/m2)
+
+WARNING: this also DELETES the local database file (add --keep-local to keep it) and, when
+Supabase keys are set, ALL rows in the cloud project (add --yes to confirm that).
 """
 import os
 import random
@@ -134,6 +137,9 @@ def make_record(tgid, week, index, nitrate=None, **extra):
 
 def seed(reset_local: bool = True):
     store = get_store()
+    if store.name == "supabase" and "--yes" not in sys.argv:
+        sys.exit("This will DELETE all data in the connected Supabase project. "
+                 "Re-run with --yes if that is what you want.")
     store.reset()
 
     store.create_site_if_absent(SITE, SITE_START.isoformat())

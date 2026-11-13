@@ -110,7 +110,7 @@ def page_auth():
             full_name = st.text_input("Full name")
             contact = st.text_input("Contact number or email")
             language = st.selectbox("Preferred language", config.LANGUAGES,
-                                    help="Your choice is saved to your profile. Translated screens are planned for later.")
+                                    help="Your choice is saved on this device. Translated screens are planned for later.")
             new_user = st.text_input("Choose a username")
             new_pass = st.text_input("Choose a password (6+ characters)", type="password")
             if st.form_submit_button("Create profile"):
@@ -271,6 +271,9 @@ def page_dashboard():
         site_id = st.selectbox("Site", config.SITES)
         crop = st.selectbox("Crop", config.CROPS)
         trials = api_client.get_json("/api/v1/trials", role, site_id=site_id, crop_id=crop)
+        if any(str(t.get("client_uuid", "")).startswith("seed-") for t in trials):
+            st.info("Demo data: these records are synthetic, made by the demo seed script. "
+                    "They are not real trial results.")
         weeks = sorted({t["trial_week"] for t in trials}, key=lambda w: int(w[3:]))
         if not weeks:
             st.info("No trial data for this site and crop yet.")
